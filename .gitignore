@@ -1,0 +1,5 @@
+*.o
+*.hip
+*.csv
+hello
+main
