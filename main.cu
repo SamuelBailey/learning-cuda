@@ -45,30 +45,41 @@ int main(int argc, char** argv) {
     // auto x = std::make_unique<float[]>(N);
     // auto y = std::make_unique<float[]>(N);
 
-    float *x, *y;
-    cudaMallocManaged(&x, N*sizeof(float));
-    cudaMallocManaged(&y, N*sizeof(float));
+    float *h_x, *h_y;
+    cudaMallocHost(&h_x, N*sizeof(float));
+    cudaMallocHost(&h_y, N*sizeof(float));
+    float *d_x, *d_y;
+    cudaMalloc(&d_x, N*sizeof(float));
+    cudaMalloc(&d_y, N*sizeof(float));
 
     for (int i = 0; i < N; i++) {
-        x[i] = 1.0f;
-        y[i] = 2.0f;
+        h_x[i] = 1.0f;
+        h_y[i] = 2.0f;
     }
+
+    cudaMemcpy(d_x, h_x, N*sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_y, h_y, N*sizeof(float), cudaMemcpyHostToDevice);
 
     // Run kernel
     int blockSize = 256;
     int numBlocks = (N + blockSize - 1) / blockSize;
-    add<<<numBlocks, blockSize>>>(N, x, y);
+    add<<<numBlocks, blockSize>>>(N, d_x, d_y);
 
-    (void)cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
+
+    cudaMemcpy(h_x, d_x, N*sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_y, d_y, N*sizeof(float), cudaMemcpyDeviceToHost);
 
     float maxError = 0.0f;
     for (int i = 0; i < N; i++) {
-        maxError = fmax(maxError, fabs(y[i] - 3.0f));
+        maxError = fmax(maxError, fabs(h_y[i] - 3.0f));
     }
     std::cout << "Max error: " << maxError << std::endl;
 
-    cudaFree(x);
-    cudaFree(y);
+    cudaFreeHost(h_x);
+    cudaFreeHost(h_y);
+    cudaFree(d_x);
+    cudaFree(d_y);
 
     return 0;
 }
